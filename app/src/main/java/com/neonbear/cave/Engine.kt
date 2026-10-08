@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -58,7 +60,9 @@ object Engine {
     var bitrate by mutableStateOf(320)
     var parallel by mutableStateOf(2)
     var subfolder by mutableStateOf(true)
-    var cover by mutableStateOf(false)
+    var cover by mutableStateOf(true)
+    var warnMobile by mutableStateOf(true)
+    var dataWarningVisible by mutableStateOf(false)
     var skipExisting by mutableStateOf(true)
 
     var busy by mutableStateOf(false)
@@ -94,7 +98,8 @@ object Engine {
         bitrate = prefs.getInt("bitrate", 320)
         parallel = prefs.getInt("parallel", 2)
         subfolder = prefs.getBoolean("subfolder", true)
-        cover = prefs.getBoolean("cover", false)
+        cover = prefs.getBoolean("cover2", true)
+        warnMobile = prefs.getBoolean("warnMobile", true)
         skipExisting = prefs.getBoolean("skip", true)
         prefs.getString("folder", null)?.let { setFolderInternal(Uri.parse(it), persist = false) }
         runCatching {
@@ -120,7 +125,8 @@ object Engine {
             .putInt("bitrate", bitrate)
             .putInt("parallel", parallel)
             .putBoolean("subfolder", subfolder)
-            .putBoolean("cover", cover)
+            .putBoolean("cover2", cover)
+            .putBoolean("warnMobile", warnMobile)
             .putBoolean("skip", skipExisting)
             .putString("folder", folderUri?.toString())
             .putString("recent", arr.toString())
@@ -152,7 +158,9 @@ object Engine {
     }
 
     // ---------------------------------------------------------------- actions
-    fun start(forceSkip: Boolean = false) {
+    fun start(forceSkip: Boolean = false) = guarded { startNow(forceSkip) }
+
+    private fun startNow(forceSkip: Boolean) {
         if (busy) return
         val u = url.trim()
         val source = PlaylistReader.detect(u)
@@ -200,7 +208,9 @@ object Engine {
         }
     }
 
-    fun retryFailed() {
+    fun retryFailed() = guarded { retryNow() }
+
+    private fun retryNow() {
         if (busy) return
         if (lastDest == null) return
         val items = tracks.filter { it.status == Status.Failed }
@@ -223,6 +233,38 @@ object Engine {
                 finishRun()
             }
         }
+    }
+
+    // ---- mobile data warning
+    private var pending: (() -> Unit)? = null
+
+    /** True on mobile data or any other metered connection. */
+    private fun onMeteredNetwork(): Boolean {
+        val cm = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+            !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    }
+
+    private fun guarded(action: () -> Unit) {
+        if (warnMobile && onMeteredNetwork()) {
+            pending = action
+            dataWarningVisible = true
+        } else {
+            action()
+        }
+    }
+
+    fun confirmDataWarning() {
+        dataWarningVisible = false
+        val action = pending
+        pending = null
+        action?.invoke()
+    }
+
+    fun dismissDataWarning() {
+        dataWarningVisible = false
+        pending = null
     }
 
     fun cancel() {

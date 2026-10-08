@@ -28,7 +28,8 @@ A notification shows while downloading so Android keeps the app running.
 ## Limits
 - Playlists must be public. Spotify's public page only exposes about 100 tracks.
 - Search matching can pick a wrong version of a song now and then.
-- Cover art is off by default (turn it on in Options); if it fails Cave retries without it.
+- Cover art is on by default (switch it off in Options); if it fails for a song, Cave retries without it.
+- On mobile data (or any metered connection) Cave asks before downloading; turn that off in Options.
 - If downloads fail, press Update in Options (Cave also updates yt-dlp itself every 12 hours).
   The red "Last error" line on the Clone page and the Log tab show why a song failed.
 - Only download music you have the right to copy.
