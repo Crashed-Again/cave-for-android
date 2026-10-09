@@ -1,9 +1,9 @@
-name: Build HoneyBeat APK
+name: Build Cave APK
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:      # lets you press "Run workflow" by hand
   push:
-    branches: [main, master]
+    branches: [ main, master ]
 
 jobs:
   build:
@@ -18,16 +18,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.9"
+          gradle-version: 8.7
 
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
-
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk HoneyBeat.apk
+        run: gradle assembleDebug --console=plain
 
       - uses: actions/upload-artifact@v4
         with:
-          name: HoneyBeat-apk
-          path: HoneyBeat.apk
-          if-no-files-found: error
+          name: Cave-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
