@@ -1,7 +1,7 @@
 .gradle/
+.gradle-dist/
 build/
-app/build/
 local.properties
-dist/
 .idea/
 *.iml
+dist/
